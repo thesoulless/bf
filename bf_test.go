@@ -2,6 +2,8 @@ package bf
 
 import (
 	"bytes"
+	"fmt"
+	"log"
 	"strings"
 	"testing"
 	"unsafe"
@@ -128,4 +130,31 @@ func TestRun(t *testing.T) {
 		})
 		c.Assert(err, qt.IsNotNil)
 	})
+}
+
+func Example() {
+	s := `,+++++[>++++[>++>+++>+++>+<<
+<<-]>+>+>->>+[<]<-]>>.>---.+++++++..+++.>
+>.<-.<.+++.------.--------.>>+.>++.`
+	input := strings.NewReader(s)
+
+	var buf []byte
+	out := bytes.NewBuffer(buf)
+
+	inps := "3\n"
+	args := strings.NewReader(inps)
+
+	bfi, err := New(input, out, args)
+	if err != nil {
+		log.Printf("error: %v", err)
+		return
+	}
+	err = bfi.Exec()
+	if err != nil {
+		log.Printf("error: %v", err)
+		return
+	}
+	fmt.Println(out.String())
+
+	// Output: Hello World!
 }

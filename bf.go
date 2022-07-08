@@ -210,11 +210,8 @@ func (b *BF) Exec() error {
 		case '+':
 			*(*int32)(b.ptr)++
 		case ',':
-			fmt.Print("Enter value (int32): ")
 			b.inpscan.Scan()
 			text := b.inpscan.Text()
-			//reader := bufio.NewReader(b.inp)
-			//text, _ := reader.ReadString('\n')
 			if text != "" {
 				i, err := strconv.ParseInt(text, 10, 32)
 				if err != nil {

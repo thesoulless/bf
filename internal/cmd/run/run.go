@@ -3,9 +3,9 @@ package run
 
 import (
 	"bytes"
-	"context"
 	"fmt"
 	"io"
+	"log"
 	"os"
 	"strings"
 
@@ -23,7 +23,7 @@ func Cmd() *cobra.Command {
 		Args:  cobra.ExactArgs(0),
 		Short: "Runs BF commands",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return run(cmd.Context(), s, file)
+			return run(s, file)
 		},
 	}
 
@@ -36,7 +36,9 @@ func Cmd() *cobra.Command {
 	return cmd
 }
 
-func run(ctx context.Context, s string, file string) error {
+// run reads bf commands either from string or a file, and
+// uses the underlying bf library to execute them
+func run(s string, file string) error {
 	if s != "" {
 		err := bf.Run(strings.NewReader(s))
 

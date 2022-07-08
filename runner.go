@@ -9,16 +9,16 @@ import (
 )
 
 var (
+	size = 3
+
 	ErrNoCommands       = errors.New("no commands to run")
-	ErrMaxArraySize     = fmt.Errorf("backing array size can't exceeds %d", size)
 	ErrNegativeIndex    = errors.New("array index can't be less than zero")
 	ErrIllegalCharNul   = errors.New("illegal character NUL")
 	ErrLoopDoesNotMatch = errors.New("loop openings/closing ([/]) count does not match")
 )
 
 const (
-	eof  = -1 // end of file
-	size = 30000
+	eof = -1 // end of file
 )
 
 type offset struct {
@@ -28,14 +28,18 @@ type offset struct {
 }
 
 // runner represents the interpreter of Brainfuck. It scans each command and runs it right away.
-// Since Go uses rune (int32) to represent character values, bf uses int32 for cell size, with a
-// 30K item backing array to provided better error .
+// Since Go uses rune (int32) to represent character values, bf uses int32 for cell size, starting
+// with a 30K item backing array. The backing array will expand in case of a need so the bf be
+// Turing complete.
 //
+// On validation, it returns error on empty command set, and when loop beginning and endings
+// does not match.
+// On execution, it returns error on moving index to negative, and encountering a NUL character.
 type runner struct {
 	src []byte // source
 
-	c    int         // backing array limit counter
-	arr  [size]int32 // backing array
+	c    int     // backing array limit counter
+	arr  []int32 // backing array
 	ptr  unsafe.Pointer
 	lpos []offset // loop stack positions
 
@@ -48,10 +52,11 @@ func (r *runner) Init(src []byte) error {
 	r.src = src
 
 	r.ch = ' '
+	r.arr = make([]int32, size)
 	r.o.offset = 0
 	r.o.rdOffset = 0
 	r.o.lineOffset = 0
-	r.ptr = unsafe.Pointer(&r.arr)
+	r.ptr = unsafe.Pointer(&r.arr[0])
 
 	err := validate(r.src)
 	if err != nil {
@@ -147,7 +152,9 @@ func (r *runner) exec(out io.Writer) error {
 		case '>':
 			r.c++
 			if r.c >= size {
-				return ErrMaxArraySize
+				// instead of returning error expand the backing array cap
+				size = len(r.arr) + size
+				r.arr = append(make([]int32, 0, size), r.arr...)
 			}
 			r.ptr = unsafe.Add(r.ptr, unsafe.Sizeof(r.arr[0]))
 		case '<':

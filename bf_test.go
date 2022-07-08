@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"strings"
 	"testing"
+	"unsafe"
 
 	qt "github.com/frankban/quicktest"
 )
@@ -21,7 +22,10 @@ func TestRun(t *testing.T) {
 		var buf []byte
 		out := bytes.NewBuffer(buf)
 
-		err := Run(input, out)
+		bfi, err := New(input, out, nil)
+		c.Assert(err, qt.IsNil)
+
+		err = bfi.Exec()
 
 		c.Assert(err, qt.IsNil)
 		c.Assert(out.String(), qt.Equals, want)
@@ -35,7 +39,9 @@ func TestRun(t *testing.T) {
 		var buf []byte
 		out := bytes.NewBuffer(buf)
 
-		err := Run(input, out)
+		bfi, err := New(input, out, nil)
+		c.Assert(err, qt.IsNil)
+		err = bfi.Exec()
 
 		c.Assert(err, qt.IsNotNil)
 		c.Assert(out.String(), qt.Equals, "")
@@ -50,10 +56,76 @@ func TestRun(t *testing.T) {
 		var buf []byte
 		out := bytes.NewBuffer(buf)
 
-		err := Run(input, out)
-
+		_, err := New(input, out, nil)
 		c.Assert(err, qt.IsNotNil)
 		c.Assert(out.String(), qt.Equals, "")
 		c.Assert(err, qt.Equals, wantErr)
+	})
+
+	t.Run("custom command", func(t *testing.T) {
+		s := `++       Cell c0 = 2
+> ++  Cell c1 = 2
+[<+>-]<^.`
+		input := strings.NewReader(s)
+		want := []byte{16}
+
+		var buf []byte
+		out := bytes.NewBuffer(buf)
+
+		bfi, err := New(input, out, nil)
+		c.Assert(err, qt.IsNil)
+
+		err = bfi.AddCommand('^', func(ptr unsafe.Pointer) {
+			*(*int32)(ptr) *= *(*int32)(ptr)
+		})
+		c.Assert(err, qt.IsNil)
+		err = bfi.Exec()
+
+		c.Assert(err, qt.IsNil)
+		c.Assert(out.Bytes(), qt.ContentEquals, want)
+	})
+
+	t.Run("inputs", func(t *testing.T) {
+		s := `,++       Cell c0 = 5
+> ,++  Cell c1 = 6
+[<+>-]<.`
+		input := strings.NewReader(s)
+		want := []byte{11}
+
+		inps := "3\n4\n"
+		args := strings.NewReader(inps)
+
+		var buf []byte
+		out := bytes.NewBuffer(buf)
+
+		bfi, err := New(input, out, args)
+		c.Assert(err, qt.IsNil)
+
+		c.Assert(err, qt.IsNil)
+		err = bfi.Exec()
+
+		c.Assert(err, qt.IsNil)
+		c.Assert(out.Bytes(), qt.ContentEquals, want)
+	})
+
+	t.Run("duplicate command", func(t *testing.T) {
+		s := `,++       Cell c0 = 5
+> ,++  Cell c1 = 6
+[<+>-]<.`
+		input := strings.NewReader(s)
+
+		var buf []byte
+		out := bytes.NewBuffer(buf)
+
+		bfi, err := New(input, out, nil)
+		c.Assert(err, qt.IsNil)
+		err = bfi.AddCommand('^', func(ptr unsafe.Pointer) {
+			*(*int32)(ptr) *= *(*int32)(ptr)
+		})
+		c.Assert(err, qt.IsNil)
+		err = bfi.AddCommand('^', func(ptr unsafe.Pointer) {
+			*(*int32)(ptr)++
+		})
+		c.Assert(err, qt.IsNotNil)
 	})
 }

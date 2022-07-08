@@ -47,7 +47,12 @@ func run(s string, file string) error {
 }
 
 func runString(s string) error {
-	err := bf.Run(strings.NewReader(s), os.Stdout)
+	bfi, err := bf.New(strings.NewReader(s), os.Stdout, os.Stdin)
+	if err != nil {
+		return err
+	}
+
+	err = bfi.Exec()
 
 	if err != nil {
 		fmt.Printf("error: %v\n", err)
@@ -73,7 +78,12 @@ func runFile(file string) error {
 		return fmt.Errorf("faild to read file: %w", err)
 	}
 
-	err = bf.Run(bytes.NewReader(fb), os.Stdout)
+	bfi, err := bf.New(bytes.NewReader(fb), os.Stdout, os.Stdin)
+	if err != nil {
+		return err
+	}
+
+	err = bfi.Exec()
 
 	if err != nil {
 		fmt.Printf("error: %v\n", err)

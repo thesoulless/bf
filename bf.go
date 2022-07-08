@@ -1,25 +1,26 @@
+// Package bf is a library that reads a series of Brainfuck commands from
+// an io.Reader and writes the outputs of those commands to an io.Writer
 package bf
 
 import (
 	"io"
 )
 
-func Run(src io.Reader) error {
+// Run reads the Brainfuck commands from src and writes the outputs to out
+func Run(src io.Reader, out io.Writer) error {
 	insts, err := io.ReadAll(src)
 	if err != nil {
 		return err
 	}
 
-	return run(insts)
+	return run(insts, out)
 }
 
-func run(insts []byte) error {
+func run(insts []byte, out io.Writer) error {
 	s := &runner{}
-	s.Init(insts)
-	return s.run()
+	err := s.Init(insts)
+	if err != nil {
+		return err
+	}
+	return s.exec(out)
 }
-
-// ### Pluses
-// * Automated tests.
-// * Good documentation of your code.
-// * Good error handling: errors that help the users of your library to understand what is wrong with their brainfuck code and where.

@@ -40,15 +40,23 @@ func Cmd() *cobra.Command {
 // uses the underlying bf library to execute them
 func run(s string, file string) error {
 	if s != "" {
-		err := bf.Run(strings.NewReader(s))
-
-		if err != nil {
-			fmt.Printf("error: %v\n", err)
-		}
-
-		return err
+		return runString(s)
 	}
 
+	return runFile(file)
+}
+
+func runString(s string) error {
+	err := bf.Run(strings.NewReader(s), os.Stdout)
+
+	if err != nil {
+		fmt.Printf("error: %v\n", err)
+	}
+
+	return err
+}
+
+func runFile(file string) error {
 	f, err := os.Open(file)
 	if err != nil {
 		return fmt.Errorf("failed to open file: %w", err)
@@ -65,7 +73,7 @@ func run(s string, file string) error {
 		return fmt.Errorf("faild to read file: %w", err)
 	}
 
-	err = bf.Run(bytes.NewReader(fb))
+	err = bf.Run(bytes.NewReader(fb), os.Stdout)
 
 	if err != nil {
 		fmt.Printf("error: %v\n", err)

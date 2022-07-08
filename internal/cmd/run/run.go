@@ -53,7 +53,12 @@ func run(s string, file string) error {
 	if err != nil {
 		return fmt.Errorf("failed to open file: %w", err)
 	}
-	defer f.Close()
+	defer func(f *os.File) {
+		err := f.Close()
+		if err != nil {
+			log.Printf("error closing file: %v", err)
+		}
+	}(f)
 
 	fb, err := io.ReadAll(f)
 	if err != nil {

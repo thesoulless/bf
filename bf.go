@@ -115,6 +115,19 @@ func (b *BF) AddCommand(cmd rune, f func(ptr unsafe.Pointer)) error {
 	return nil
 }
 
+// RemoveCommand removes a command from BF, it works for user-defined and also
+// the default commands
+func (b *BF) RemoveCommand(cmd rune) {
+	for i, c := range defaultCms {
+		if cmd == c {
+			defaultCms = append(defaultCms[0:i], defaultCms[i+1:]...)
+			return
+		}
+	}
+
+	delete(b.ucmds, cmd)
+}
+
 func (b *BF) next() (offset, error) {
 	if b.o.rdOffset < len(b.src) {
 		b.o.offset = b.o.rdOffset

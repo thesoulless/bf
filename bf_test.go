@@ -11,7 +11,7 @@ import (
 	qt "github.com/frankban/quicktest"
 )
 
-func TestRun(t *testing.T) {
+func TestBF_Run(t *testing.T) {
 	c := qt.New(t)
 
 	t.Run("from string", func(t *testing.T) {
@@ -64,29 +64,6 @@ func TestRun(t *testing.T) {
 		c.Assert(err, qt.Equals, wantErr)
 	})
 
-	t.Run("custom command", func(t *testing.T) {
-		s := `++       Cell c0 = 2
-> ++  Cell c1 = 2
-[<+>-]<^.`
-		input := strings.NewReader(s)
-		want := []byte{16}
-
-		var buf []byte
-		out := bytes.NewBuffer(buf)
-
-		bfi, err := New(input, out, nil)
-		c.Assert(err, qt.IsNil)
-
-		err = bfi.AddCommand('^', func(ptr unsafe.Pointer) {
-			*(*int32)(ptr) *= *(*int32)(ptr)
-		})
-		c.Assert(err, qt.IsNil)
-		err = bfi.Exec()
-
-		c.Assert(err, qt.IsNil)
-		c.Assert(out.Bytes(), qt.ContentEquals, want)
-	})
-
 	t.Run("inputs", func(t *testing.T) {
 		s := `,++       Cell c0 = 5
 > ,++  Cell c1 = 6
@@ -103,6 +80,33 @@ func TestRun(t *testing.T) {
 		bfi, err := New(input, out, args)
 		c.Assert(err, qt.IsNil)
 
+		c.Assert(err, qt.IsNil)
+		err = bfi.Exec()
+
+		c.Assert(err, qt.IsNil)
+		c.Assert(out.Bytes(), qt.ContentEquals, want)
+	})
+}
+
+func TestBF_AddCommand(t *testing.T) {
+	c := qt.New(t)
+
+	t.Run("custom command", func(t *testing.T) {
+		s := `++       Cell c0 = 2
+> ++  Cell c1 = 2
+[<+>-]<^.`
+		input := strings.NewReader(s)
+		want := []byte{16}
+
+		var buf []byte
+		out := bytes.NewBuffer(buf)
+
+		bfi, err := New(input, out, nil)
+		c.Assert(err, qt.IsNil)
+
+		err = bfi.AddCommand('^', func(ptr unsafe.Pointer) {
+			*(*int32)(ptr) *= *(*int32)(ptr)
+		})
 		c.Assert(err, qt.IsNil)
 		err = bfi.Exec()
 
@@ -129,6 +133,31 @@ func TestRun(t *testing.T) {
 			*(*int32)(ptr)++
 		})
 		c.Assert(err, qt.IsNotNil)
+	})
+}
+
+func TestBF_RemoveCommand(t *testing.T) {
+	c := qt.New(t)
+	t.Run("remove command", func(t *testing.T) {
+		s := `++       Cell c0 = 2
+> ++  Cell c1 = 2
+[<+>-]<.`
+		input := strings.NewReader(s)
+
+		var buf []byte
+		out := bytes.NewBuffer(buf)
+
+		bfi, err := New(input, out, nil)
+		c.Assert(err, qt.IsNil)
+		err = bfi.AddCommand('^', func(ptr unsafe.Pointer) {
+			*(*int32)(ptr) *= *(*int32)(ptr)
+		})
+		c.Assert(err, qt.IsNil)
+		bfi.RemoveCommand('^')
+		err = bfi.AddCommand('^', func(ptr unsafe.Pointer) {
+			*(*int32)(ptr)++
+		})
+		c.Assert(err, qt.IsNil)
 	})
 }
 

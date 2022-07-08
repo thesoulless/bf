@@ -1,8 +1,8 @@
 package bf
 
 import (
-	"github.com/thesoulless/bf/token"
-	"log"
+	"errors"
+	"fmt"
 	"unsafe"
 )
 
@@ -10,48 +10,52 @@ const (
 	eof = -1 // end of file
 )
 
-type runner struct {
-	src   []byte // source
-	stack []token.Token
+type offset struct {
+	offset     int // character offset
+	rdOffset   int // reading offset (position after current character)
+	lineOffset int // current line offset
+}
 
-	insts [30000]byte
-	ptr   unsafe.Pointer
+type runner struct {
+	src []byte // source
+
+	arr  [30000]int32
+	ptr  unsafe.Pointer
+	lpos []offset // loop stack positions
 
 	// scanning state
-	ch         rune // current character
-	offset     int  // character offset
-	rdOffset   int  // reading offset (position after current character)
-	lineOffset int  // current line offset
+	ch rune // current character
+	o  offset
 }
 
 func (r *runner) Init(src []byte) {
 	r.src = src
 
 	r.ch = ' '
-	r.offset = 0
-	r.rdOffset = 0
-	r.lineOffset = 0
-	r.ptr = unsafe.Pointer(&r.insts)
+	r.o.offset = 0
+	r.o.rdOffset = 0
+	r.o.lineOffset = 0
+	r.ptr = unsafe.Pointer(&r.arr)
 
 	r.next()
 }
 
 func (r *runner) next() {
-	if r.rdOffset < len(r.src) {
-		r.offset = r.rdOffset
+	if r.o.rdOffset < len(r.src) {
+		r.o.offset = r.o.rdOffset
 		if r.ch == '\n' {
-			r.lineOffset = r.offset
+			r.o.lineOffset = r.o.offset
 		}
-		nr, w := rune(r.src[r.rdOffset]), 1
+		nr, w := rune(r.src[r.o.rdOffset]), 1
 		if nr == 0 {
 			panic("illegal character NUL")
 		}
-		r.rdOffset += w
+		r.o.rdOffset += w
 		r.ch = nr
 	} else {
-		r.offset = len(r.src)
+		r.o.offset = len(r.src)
 		if r.ch == '\n' {
-			r.lineOffset = r.offset
+			r.o.lineOffset = r.o.offset
 		}
 		r.ch = eof
 	}
@@ -63,49 +67,7 @@ func (r *runner) skipWhitespace() {
 	}
 }
 
-func (r *runner) peek() byte {
-	if r.rdOffset < len(r.src) {
-		return r.src[r.rdOffset]
-	}
-	return 0
-}
-
-func (r *runner) Scan() (tok token.Token) {
-	r.skipWhitespace()
-
-	// determine token value
-	ch := r.ch
-
-	r.next()
-	switch ch {
-	case -1:
-		tok = token.EOF
-	case '-':
-		tok = token.SUB
-	case '[':
-		tok = token.LBRACK
-	case ']':
-		tok = token.RBRACK
-	case '>':
-		tok = token.GTR
-	case '<':
-		tok = token.LSS
-	case '+':
-		tok = token.ADD
-	default:
-		log.Printf("illegal character %#U", ch)
-		tok = token.INVALID
-	}
-
-	return tok
-}
-
 func (r *runner) run() error {
-	var (
-		tok token.Token
-	)
-
-	e := true
 	for {
 		r.skipWhitespace()
 
@@ -114,47 +76,49 @@ func (r *runner) run() error {
 		r.next()
 
 		switch ch {
-		case -1:
-			tok = token.EOF
 		case '-':
-			tok = token.SUB
+			*(*int32)(r.ptr)--
 		case '[':
-			tok = token.LBRACK
+			// always push the position to the stack
+			r.lpos = append([]offset{
+				{
+					offset:     r.o.offset - 2,
+					rdOffset:   r.o.rdOffset - 2,
+					lineOffset: r.o.lineOffset,
+				},
+			}, r.lpos...)
 		case ']':
-			tok = token.RBRACK
-		case '>':
-			tok = token.GTR
-			r.stack = append([]token.Token{token.GTR}, r.stack...)
-		case '<':
-			tok = token.LSS
-		case '+':
-			tok = token.ADD
-			r.stack = append([]token.Token{token.ADD}, r.stack...)
-		default:
-			log.Printf("illegal character %#U", ch)
-			tok = token.INVALID
-		}
-
-		if e {
-			for _, i := range r.stack {
-				switch i {
-				case token.ADD:
-					*(*byte)(r.ptr)++
-				case token.GTR:
-					r.ptr = unsafe.Add(r.ptr, unsafe.Sizeof(r.insts[0]))
-				}
+			if len(r.lpos) == 0 || (r.lpos[0].offset == 0 && r.lpos[0].rdOffset == 0 && r.lpos[0].lineOffset == 0) {
+				return errors.New("broken loop")
 			}
-			r.stack = nil
+
+			// continue the loop of *ptr is not zero
+			if *(*int32)(r.ptr) != 0 {
+				// jump back, and read again
+				r.o.offset = r.lpos[0].offset
+				r.o.rdOffset = r.lpos[0].rdOffset
+				r.o.lineOffset = r.lpos[0].lineOffset
+				r.next()
+			}
+
+			// always pop the loop stack
+			r.lpos = r.lpos[1:]
+		case '>':
+			r.ptr = unsafe.Add(r.ptr, unsafe.Sizeof(r.arr[0]))
+		case '<':
+			r.ptr = unsafe.Pointer(uintptr(r.ptr) - unsafe.Sizeof(r.arr[0]))
+		case '+':
+			*(*int32)(r.ptr)++
+		case '.':
+			fmt.Printf("%s", string(*(*int32)(r.ptr)))
+
+			// ignore unknown commands
 		}
 
-		if tok == token.EOF {
+		if ch == eof {
 			break
 		}
 	}
 
-	log.Printf("tok: %s", tok.String())
-
-	log.Printf("0: %v", r.insts[0])
-	log.Printf("0: %v", r.insts[1])
 	return nil
 }

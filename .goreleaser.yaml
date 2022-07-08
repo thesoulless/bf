@@ -1,0 +1,43 @@
+project_name: bf
+release:
+  prerelease: auto # don't publish release with -rc1,-pre, etc suffixes
+before:
+  hooks:
+    - go mod tidy
+builds:
+  - env: [CGO_ENABLED=0]
+    goos:
+      - linux
+      - darwin
+    goarch:
+      - amd64 
+      - arm64
+    main: ./cmd/bf/main.go
+    ldflags:
+      - -s -w
+    binary: "bf"
+nfpms:
+  - maintainer: Hamed Nemati
+    description: The bf CLI
+    homepage: https://github.com/thesoulless/bf
+    license: Apache License 2.0
+    formats:
+      - deb
+      - rpm
+    replacements:
+      darwin: macOS
+archives:
+  - replacements:
+      darwin: macOS
+    files:
+      - README.md
+      - LICENSE
+snapshot:
+  name_template: "{{ .Tag }}-next"
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - '^docs:'
+      - '^test:'
+      - Merge pull request

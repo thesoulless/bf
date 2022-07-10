@@ -2,6 +2,9 @@
 
 BF is a [Brainfuck](https://en.wikipedia.org/wiki/Brainfuck) interpreter.
 
+## Installation
+`go get -u github.com/thesoulless/bf`
+
 ## How to use
 
 ```go
@@ -43,3 +46,9 @@ func main() {
 	// Output: Hello World!
 }
 ```
+
+You can also use the binaries as follows:
+
+`$ bf run -s "BF_COMMANDS_HERE"`
+
+`$ bf run -f ./path/to/file.bf`

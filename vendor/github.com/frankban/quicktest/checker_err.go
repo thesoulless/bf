@@ -1,8 +1,5 @@
 // Licensed under the MIT license, see LICENSE file for details.
 
-//go:build go1.13
-// +build go1.13
-
 package quicktest
 
 import (
@@ -21,7 +18,7 @@ import (
 //     // Checking fields on a specific error type
 //     var pathError *os.PathError
 //     if c.Check(err, qt.ErrorAs, &pathError) {
-//         c.Assert(pathError.Path, Equals, "some_path")
+//         c.Assert(pathError.Path, qt.Equals, "some_path")
 //     }
 //
 var ErrorAs Checker = &errorAsChecker{
